@@ -317,6 +317,7 @@ const WaveVisualization = ({ audioLevel, isRecording }: { audioLevel: number; is
         <h2 className="text-3xl md:text-5xl font-cursive font-bold text-primary mb-4 md:mb-6 drop-shadow-sm">Share Your Story</h2>
         <p className="text-muted-foreground text-lg md:text-xl font-serif leading-relaxed max-w-2xl mx-auto px-4">
           Speak as if sharing with a beloved grandchild. Let your heart guide your words.
+          "Memories are the only treasures that grow richer when shared."
         </p>
       </div>
 

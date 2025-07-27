@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Play, Pause, MoreVertical, Plus, Edit, Trash2, Loader2, BookOpen } from 'lucide-react';
+import { Play, Pause, MoreVertical, Plus, Edit, Trash2, Loader2, BookOpen, Key, Mic } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -11,6 +11,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { useAuth } from '@/contexts/AuthContext';
 import { chaptersService, recordingsService, Chapter, Recording } from '@/services/firestore';
 import { useToast } from '@/hooks/use-toast';
+import { claudeService, StoryResult, TranscriptionResult } from '@/services/claudeService';
+import ApiKeyDialog from '@/components/ApiKeyDialog';
 
 // Interfaces imported from services/firestore.ts
 
@@ -24,7 +26,10 @@ const ChaptersPage = () => {
   const [editingChapter, setEditingChapter] = useState<Chapter | null>(null);
   const [playingRecording, setPlayingRecording] = useState<string | null>(null);
   const [deletingRecording, setDeletingRecording] = useState<string | null>(null);
+  const [transcribingChapter, setTranscribingChapter] = useState<string | null>(null);
   const [compilingChapter, setCompilingChapter] = useState<string | null>(null);
+  const [chapterTranscriptions, setChapterTranscriptions] = useState<{ [key: string]: TranscriptionResult }>({});
+  const [generatedStories, setGeneratedStories] = useState<{ [key: string]: StoryResult }>({});
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [newChapter, setNewChapter] = useState({
     title: '',
@@ -75,14 +80,14 @@ const ChaptersPage = () => {
       if (editingChapter) {
         await chaptersService.updateChapter(currentUser.uid, editingChapter.id, chapterData);
         toast({
-          title: "Chapter updated",
-          description: "Your chapter has been successfully updated.",
+          title: "Story updated",
+          description: "Your story has been successfully updated.",
         });
       } else {
         await chaptersService.addChapter(currentUser.uid, chapterData);
         toast({
-          title: "Chapter created",
-          description: "Your new chapter has been created.",
+          title: "Story created",
+          description: "Your new story has been created.",
         });
       }
 
@@ -114,13 +119,13 @@ const ChaptersPage = () => {
     try {
       await chaptersService.deleteChapter(currentUser.uid, chapterId);
       toast({
-        title: "Chapter deleted",
-        description: "Chapter and all its recordings have been removed.",
+        title: "Story deleted",
+        description: "Story and all its recordings have been removed.",
       });
     } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to delete chapter. Please try again.",
+        description: "Failed to delete story. Please try again.",
         variant: "destructive",
       });
     }
@@ -196,12 +201,73 @@ const ChaptersPage = () => {
     }
   };
 
-  const handleCompileChapter = async (chapterId: string) => {
+  const handleTranscribeChapter = async (chapterId: string) => {
     const chapter = chapters.find(c => c.id === chapterId);
     if (!chapter || chapter.recordings.length === 0) {
       toast({
         title: "No recordings",
-        description: "This chapter needs recordings to compile into a story.",
+        description: "This story needs recordings to be transcribed.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setTranscribingChapter(chapterId);
+    
+    try {
+      // Extract audio URLs from recordings
+      const audioUrls = chapter.recordings
+        .filter(recording => recording.audioUrl)
+        .map(recording => recording.audioUrl!);
+
+      if (audioUrls.length === 0) {
+        throw new Error("No audio files available");
+      }
+
+      // Transcription with Whisper
+      const transcriptionResult = await claudeService.transcribeChapterAudios(audioUrls);
+
+      // Save the result
+      setChapterTranscriptions(prev => ({
+        ...prev,
+        [chapterId]: transcriptionResult
+      }));
+      
+      toast({
+        title: "Transcription completed!",
+        description: `${chapter.title} has been successfully transcribed.`,
+      });
+      
+    } catch (error) {
+      console.error('Error transcribing chapter:', error);
+      toast({
+        title: "Transcription failed",
+        description: error.message || "Unable to transcribe audio. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setTranscribingChapter(null);
+    }
+  };
+
+  const handleCompileStory = async (chapterId: string) => {
+    // Check if API key is configured
+    if (!claudeService.hasApiKey()) {
+      toast({
+        title: "API key required",
+        description: "Configure your Claude API key to generate stories.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const chapter = chapters.find(c => c.id === chapterId);
+    const transcriptions = chapterTranscriptions[chapterId];
+    
+    if (!chapter || !transcriptions || transcriptions.transcriptions.length === 0) {
+      toast({
+        title: "Transcription required",
+        description: "Please transcribe the recordings first.",
         variant: "destructive",
       });
       return;
@@ -210,23 +276,29 @@ const ChaptersPage = () => {
     setCompilingChapter(chapterId);
     
     try {
-      // TODO: Replace with actual backend call
-      // Simulate backend processing
-      await new Promise(resolve => setTimeout(resolve, 3000));
+      // Generate story with Claude
+      const storyResult = await claudeService.generateStory(
+        transcriptions.transcriptions,
+        chapter.title,
+        chapter.description
+      );
+
+      // Save the result
+      setGeneratedStories(prev => ({
+        ...prev,
+        [chapterId]: storyResult
+      }));
       
       toast({
-        title: "Story compiled!",
-        description: `${chapter.title} has been compiled into a complete story.`,
+        title: "Story generated!",
+        description: `${chapter.title} has been transformed into a beautiful story.`,
       });
       
-      // TODO: Handle the returned story text from backend
-      console.log('Compiled story for chapter:', chapter.title);
-      
     } catch (error) {
-      console.error('Error compiling chapter:', error);
+      console.error('Error compiling story:', error);
       toast({
         title: "Compilation failed",
-        description: "Failed to compile the story. Please try again.",
+        description: error.message || "Unable to compile story. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -239,7 +311,7 @@ const ChaptersPage = () => {
       <div className="container mx-auto px-4 py-8 space-y-8 font-sans">
         <div className="text-center">
           <Loader2 className="w-8 h-8 animate-spin mx-auto text-primary" />
-          <p className="text-muted-foreground mt-2">Loading your chapters...</p>
+          <p className="text-muted-foreground mt-2">Loading your stories...</p>
         </div>
       </div>
     );
@@ -248,18 +320,18 @@ const ChaptersPage = () => {
   return (
     <div className="container mx-auto px-4 py-8 space-y-8 font-sans">
       <div className="text-center mb-8">
-        <h2 className="text-4xl font-cursive font-bold text-primary mb-4">My Chapters</h2>
+        <h2 className="text-4xl font-cursive font-bold text-primary mb-4">My Stories</h2>
         <p className="text-muted-foreground text-lg font-serif">
-          Your recorded memories organized into chapters
+          Your recorded memories transformed into beautiful stories
         </p>
       </div>
 
       {/* Header with New Chapter Button */}
       <div className="flex justify-between items-center">
         <div>
-          <h3 className="text-xl font-semibold text-foreground">Recorded Chapters</h3>
+          <h3 className="text-xl font-semibold text-foreground">Recorded Stories</h3>
           <p className="text-sm text-muted-foreground">
-            {chapters.length} {chapters.length === 1 ? 'chapter' : 'chapters'} • {chapters.reduce((acc, chapter) => acc + chapter.recordings.length, 0)} recordings total
+            {chapters.length} {chapters.length === 1 ? 'story' : 'stories'} • {chapters.reduce((acc, chapter) => acc + chapter.recordings.length, 0)} recordings total
           </p>
         </div>
         
@@ -273,26 +345,26 @@ const ChaptersPage = () => {
               className="bg-primary hover:bg-primary/90"
             >
               <Plus className="w-4 h-4 mr-2" />
-              New Chapter
+              New Story
             </Button>
           </DialogTrigger>
           <DialogContent className="vintage-card">
             <DialogHeader>
               <DialogTitle className="font-serif">
-                {editingChapter ? 'Edit Chapter' : 'Create New Chapter'}
+                {editingChapter ? 'Edit Story' : 'Create New Story'}
               </DialogTitle>
               <DialogDescription>
-                Organize your recordings into meaningful chapters
+                Organize your recordings into meaningful stories
               </DialogDescription>
             </DialogHeader>
             
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium mb-2">Chapter Title</label>
+                <label className="block text-sm font-medium mb-2">Story Title</label>
                 <Input
                   value={newChapter.title}
                   onChange={(e) => setNewChapter({ ...newChapter, title: e.target.value })}
-                  placeholder="Enter chapter title..."
+                  placeholder="Enter story title..."
                 />
               </div>
               
@@ -301,7 +373,7 @@ const ChaptersPage = () => {
                 <Textarea
                   value={newChapter.description}
                   onChange={(e) => setNewChapter({ ...newChapter, description: e.target.value })}
-                  placeholder="Describe this chapter..."
+                  placeholder="Describe this story..."
                   rows={3}
                 />
               </div>
@@ -321,7 +393,7 @@ const ChaptersPage = () => {
                 Cancel
               </Button>
               <Button onClick={handleSaveChapter} className="bg-primary hover:bg-primary/90">
-                {editingChapter ? 'Update Chapter' : 'Create Chapter'}
+                {editingChapter ? 'Update Story' : 'Create Story'}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -429,23 +501,92 @@ const ChaptersPage = () => {
                     </div>
                   )}
                   
-                  {/* Compile Button */}
-                  <div className="mt-4 pt-4 border-t border-border/30">
+                  {/* Transcription and Story Generation Buttons */}
+                  <div className="mt-4 pt-4 border-t border-border/30 space-y-3">
+                    {/* Step 1: Transcribe */}
                     <Button
-                      onClick={() => handleCompileChapter(chapter.id)}
-                      disabled={chapter.recordings.length === 0 || compilingChapter === chapter.id}
-                      className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
+                      onClick={() => handleTranscribeChapter(chapter.id)}
+                      disabled={chapter.recordings.length === 0 || transcribingChapter === chapter.id}
+                      className="w-full bg-secondary hover:bg-secondary/90 text-secondary-foreground"
                       size="lg"
                     >
-                      <BookOpen className="w-5 h-5 mr-2" />
-                      {compilingChapter === chapter.id ? 'Compiling Story...' : 'Compile Chapter'}
+                      <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                      </svg>
+                      {transcribingChapter === chapter.id ? 'Transcribing...' : 'Transcribe audio recordings'}
                     </Button>
+                    
+                    {/* Step 2: Compile into Story (only show after transcription) */}
+                    {chapterTranscriptions[chapter.id] && (
+                      claudeService.hasApiKey() ? (
+                        <Button
+                          onClick={() => handleCompileStory(chapter.id)}
+                          disabled={compilingChapter === chapter.id}
+                          className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
+                          size="lg"
+                        >
+                          <BookOpen className="w-5 h-5 mr-2" />
+                          {compilingChapter === chapter.id ? 'Generating story...' : 'Compile into a story'}
+                        </Button>
+                      ) : (
+                        <ApiKeyDialog>
+                          <Button
+                            className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
+                            size="lg"
+                          >
+                            <Key className="w-5 h-5 mr-2" />
+                            Configure Claude API
+                          </Button>
+                        </ApiKeyDialog>
+                      )
+                    )}
+                    
                     {chapter.recordings.length === 0 && (
                       <p className="text-xs text-muted-foreground mt-2 text-center">
-                        Add recordings to compile this chapter
+                        Add recordings to get started
                       </p>
                     )}
                   </div>
+                  
+                  {/* Transcription Display */}
+                  {chapterTranscriptions[chapter.id] && (
+                    <div className="mt-4 pt-4 border-t border-border/30">
+                      <div className="vintage-card p-4 bg-background/30">
+                        <h4 className="font-serif text-lg font-semibold text-secondary mb-2">
+                          Transcription
+                        </h4>
+                        <div className="space-y-3">
+                          {chapterTranscriptions[chapter.id].transcriptions.map((transcription, index) => (
+                            <div key={index} className="p-3 bg-muted/30 rounded-lg">
+                              <div className="text-xs text-muted-foreground mb-1">
+                                Recording {index + 1}
+                              </div>
+                              <div className="text-sm text-foreground leading-relaxed">
+                                {transcription}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Generated Story Display */}
+                  {generatedStories[chapter.id] && (
+                    <div className="mt-4 pt-4 border-t border-border/30">
+                      <div className="vintage-card p-4 bg-background/30">
+                        <h4 className="font-serif text-lg font-semibold text-primary mb-2">
+                          {generatedStories[chapter.id].title}
+                        </h4>
+                        <p className="text-sm text-muted-foreground mb-3 italic">
+                          {generatedStories[chapter.id].summary}
+                        </p>
+                        <div className="text-sm text-foreground leading-relaxed whitespace-pre-wrap font-serif">
+                          {generatedStories[chapter.id].story}
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -454,16 +595,16 @@ const ChaptersPage = () => {
       ) : (
         <div className="text-center py-12">
           <div className="vintage-card rounded-xl p-8 max-w-md mx-auto">
-            <h3 className="text-lg font-semibold text-foreground mb-2">No Chapters Yet</h3>
+            <h3 className="text-lg font-semibold text-foreground mb-2">No Stories Yet</h3>
             <p className="text-muted-foreground mb-4">
-              Start recording your memories and organize them into chapters
+              Start recording your memories and organize them into stories
             </p>
             <Button 
               onClick={() => setIsDialogOpen(true)}
               className="bg-primary hover:bg-primary/90"
             >
               <Plus className="w-4 h-4 mr-2" />
-              Create Your First Chapter
+              Create Your First Story
             </Button>
           </div>
         </div>
