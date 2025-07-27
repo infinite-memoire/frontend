@@ -205,8 +205,13 @@ const ChaptersPage = () => {
     const chapter = chapters.find(c => c.id === chapterId);
     if (!chapter || chapter.recordings.length === 0) {
       toast({
+<<<<<<< HEAD
         title: "No recordings",
         description: "This story needs recordings to be transcribed.",
+=======
+        title: "Aucun enregistrement",
+        description: "Cette histoire a besoin d'enregistrements pour être transcrite.",
+>>>>>>> a1e0af1fc496f48d51ddfc06016e7539af8de3ac
         variant: "destructive",
       });
       return;
@@ -215,12 +220,17 @@ const ChaptersPage = () => {
     setTranscribingChapter(chapterId);
     
     try {
+<<<<<<< HEAD
       // Extract audio URLs from recordings
+=======
+      // Extraire les URLs audio des enregistrements
+>>>>>>> a1e0af1fc496f48d51ddfc06016e7539af8de3ac
       const audioUrls = chapter.recordings
         .filter(recording => recording.audioUrl)
         .map(recording => recording.audioUrl!);
 
       if (audioUrls.length === 0) {
+<<<<<<< HEAD
         throw new Error("No audio files available");
       }
 
@@ -228,21 +238,40 @@ const ChaptersPage = () => {
       const transcriptionResult = await claudeService.transcribeChapterAudios(audioUrls);
 
       // Save the result
+=======
+        throw new Error("Aucun fichier audio disponible");
+      }
+
+      // Transcription avec Whisper
+      const transcriptionResult = await claudeService.transcribeChapterAudios(audioUrls);
+
+      // Sauvegarder le résultat
+>>>>>>> a1e0af1fc496f48d51ddfc06016e7539af8de3ac
       setChapterTranscriptions(prev => ({
         ...prev,
         [chapterId]: transcriptionResult
       }));
       
       toast({
+<<<<<<< HEAD
         title: "Transcription completed!",
         description: `${chapter.title} has been successfully transcribed.`,
+=======
+        title: "Transcription terminée !",
+        description: `${chapter.title} a été transcrit avec succès.`,
+>>>>>>> a1e0af1fc496f48d51ddfc06016e7539af8de3ac
       });
       
     } catch (error) {
       console.error('Error transcribing chapter:', error);
       toast({
+<<<<<<< HEAD
         title: "Transcription failed",
         description: error.message || "Unable to transcribe audio. Please try again.",
+=======
+        title: "Échec de la transcription",
+        description: error.message || "Impossible de transcrire l'audio. Veuillez réessayer.",
+>>>>>>> a1e0af1fc496f48d51ddfc06016e7539af8de3ac
         variant: "destructive",
       });
     } finally {
@@ -251,11 +280,19 @@ const ChaptersPage = () => {
   };
 
   const handleCompileStory = async (chapterId: string) => {
+<<<<<<< HEAD
     // Check if API key is configured
     if (!claudeService.hasApiKey()) {
       toast({
         title: "API key required",
         description: "Configure your Claude API key to generate stories.",
+=======
+    // Vérifier si la clé API est configurée
+    if (!claudeService.hasApiKey()) {
+      toast({
+        title: "Clé API requise",
+        description: "Configurez votre clé API Claude pour générer des histoires.",
+>>>>>>> a1e0af1fc496f48d51ddfc06016e7539af8de3ac
         variant: "destructive",
       });
       return;
@@ -266,8 +303,13 @@ const ChaptersPage = () => {
     
     if (!chapter || !transcriptions || transcriptions.transcriptions.length === 0) {
       toast({
+<<<<<<< HEAD
         title: "Transcription required",
         description: "Please transcribe the recordings first.",
+=======
+        title: "Transcription requise",
+        description: "Veuillez d'abord transcrire les enregistrements.",
+>>>>>>> a1e0af1fc496f48d51ddfc06016e7539af8de3ac
         variant: "destructive",
       });
       return;
@@ -276,29 +318,47 @@ const ChaptersPage = () => {
     setCompilingChapter(chapterId);
     
     try {
+<<<<<<< HEAD
       // Generate story with Claude
+=======
+      // Générer l'histoire avec Claude
+>>>>>>> a1e0af1fc496f48d51ddfc06016e7539af8de3ac
       const storyResult = await claudeService.generateStory(
         transcriptions.transcriptions,
         chapter.title,
         chapter.description
       );
 
+<<<<<<< HEAD
       // Save the result
+=======
+      // Sauvegarder le résultat
+>>>>>>> a1e0af1fc496f48d51ddfc06016e7539af8de3ac
       setGeneratedStories(prev => ({
         ...prev,
         [chapterId]: storyResult
       }));
       
       toast({
+<<<<<<< HEAD
         title: "Story generated!",
         description: `${chapter.title} has been transformed into a beautiful story.`,
+=======
+        title: "Histoire générée !",
+        description: `${chapter.title} a été transformé en une belle histoire.`,
+>>>>>>> a1e0af1fc496f48d51ddfc06016e7539af8de3ac
       });
       
     } catch (error) {
       console.error('Error compiling story:', error);
       toast({
+<<<<<<< HEAD
         title: "Compilation failed",
         description: error.message || "Unable to compile story. Please try again.",
+=======
+        title: "Échec de la compilation",
+        description: error.message || "Impossible de compiler l'histoire. Veuillez réessayer.",
+>>>>>>> a1e0af1fc496f48d51ddfc06016e7539af8de3ac
         variant: "destructive",
       });
     } finally {
@@ -513,7 +573,11 @@ const ChaptersPage = () => {
                       <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
                       </svg>
+<<<<<<< HEAD
                       {transcribingChapter === chapter.id ? 'Transcribing...' : 'Transcribe audio recordings'}
+=======
+                      {transcribingChapter === chapter.id ? 'Transcription en cours...' : 'Transcrire les enregistrements'}
+>>>>>>> a1e0af1fc496f48d51ddfc06016e7539af8de3ac
                     </Button>
                     
                     {/* Step 2: Compile into Story (only show after transcription) */}
@@ -526,7 +590,11 @@ const ChaptersPage = () => {
                           size="lg"
                         >
                           <BookOpen className="w-5 h-5 mr-2" />
+<<<<<<< HEAD
                           {compilingChapter === chapter.id ? 'Generating story...' : 'Compile into a story'}
+=======
+                          {compilingChapter === chapter.id ? 'Génération en cours...' : 'Compiler en Histoire'}
+>>>>>>> a1e0af1fc496f48d51ddfc06016e7539af8de3ac
                         </Button>
                       ) : (
                         <ApiKeyDialog>
@@ -535,7 +603,11 @@ const ChaptersPage = () => {
                             size="lg"
                           >
                             <Key className="w-5 h-5 mr-2" />
+<<<<<<< HEAD
                             Configure Claude API
+=======
+                            Configurer API Claude
+>>>>>>> a1e0af1fc496f48d51ddfc06016e7539af8de3ac
                           </Button>
                         </ApiKeyDialog>
                       )
@@ -543,7 +615,11 @@ const ChaptersPage = () => {
                     
                     {chapter.recordings.length === 0 && (
                       <p className="text-xs text-muted-foreground mt-2 text-center">
+<<<<<<< HEAD
                         Add recordings to get started
+=======
+                        Ajoutez des enregistrements pour commencer
+>>>>>>> a1e0af1fc496f48d51ddfc06016e7539af8de3ac
                       </p>
                     )}
                   </div>
@@ -559,7 +635,11 @@ const ChaptersPage = () => {
                           {chapterTranscriptions[chapter.id].transcriptions.map((transcription, index) => (
                             <div key={index} className="p-3 bg-muted/30 rounded-lg">
                               <div className="text-xs text-muted-foreground mb-1">
+<<<<<<< HEAD
                                 Recording {index + 1}
+=======
+                                Enregistrement {index + 1}
+>>>>>>> a1e0af1fc496f48d51ddfc06016e7539af8de3ac
                               </div>
                               <div className="text-sm text-foreground leading-relaxed">
                                 {transcription}
