@@ -13,12 +13,25 @@ import { chaptersService, recordingsService, Chapter, Recording } from '@/servic
 import { useToast } from '@/hooks/use-toast';
 import { claudeService, StoryResult, TranscriptionResult } from '@/services/claudeService';
 import ApiKeyDialog from '@/components/ApiKeyDialog';
+import { useBackendAiIntegration } from '@/hooks/useBackendAiIntegration';
+import { ProcessingProgressDialog, EnhancedChapterResults } from '@/components/UIComponents';
+import { ProcessingResults } from '@/services/backendAiService';
 
 // Interfaces imported from services/firestore.ts
 
 const ChaptersPage = () => {
   const { currentUser } = useAuth();
   const { toast } = useToast();
+  
+  // Backend AI Integration
+  const {
+    handleProcessAudiosWithBackend,
+    processingState,
+    setShowProgressDialog,
+    setProcessingResults,
+    setProcessingError,
+    setIsProcessing
+  } = useBackendAiIntegration();
   
   const [chapters, setChapters] = useState<Chapter[]>([]);
   const [loading, setLoading] = useState(true);
@@ -205,13 +218,8 @@ const ChaptersPage = () => {
     const chapter = chapters.find(c => c.id === chapterId);
     if (!chapter || chapter.recordings.length === 0) {
       toast({
-<<<<<<< HEAD
         title: "No recordings",
         description: "This story needs recordings to be transcribed.",
-=======
-        title: "Aucun enregistrement",
-        description: "Cette histoire a besoin d'enregistrements pour être transcrite.",
->>>>>>> a1e0af1fc496f48d51ddfc06016e7539af8de3ac
         variant: "destructive",
       });
       return;
@@ -220,17 +228,12 @@ const ChaptersPage = () => {
     setTranscribingChapter(chapterId);
     
     try {
-<<<<<<< HEAD
       // Extract audio URLs from recordings
-=======
-      // Extraire les URLs audio des enregistrements
->>>>>>> a1e0af1fc496f48d51ddfc06016e7539af8de3ac
       const audioUrls = chapter.recordings
         .filter(recording => recording.audioUrl)
         .map(recording => recording.audioUrl!);
 
       if (audioUrls.length === 0) {
-<<<<<<< HEAD
         throw new Error("No audio files available");
       }
 
@@ -238,40 +241,21 @@ const ChaptersPage = () => {
       const transcriptionResult = await claudeService.transcribeChapterAudios(audioUrls);
 
       // Save the result
-=======
-        throw new Error("Aucun fichier audio disponible");
-      }
-
-      // Transcription avec Whisper
-      const transcriptionResult = await claudeService.transcribeChapterAudios(audioUrls);
-
-      // Sauvegarder le résultat
->>>>>>> a1e0af1fc496f48d51ddfc06016e7539af8de3ac
       setChapterTranscriptions(prev => ({
         ...prev,
         [chapterId]: transcriptionResult
       }));
       
       toast({
-<<<<<<< HEAD
         title: "Transcription completed!",
         description: `${chapter.title} has been successfully transcribed.`,
-=======
-        title: "Transcription terminée !",
-        description: `${chapter.title} a été transcrit avec succès.`,
->>>>>>> a1e0af1fc496f48d51ddfc06016e7539af8de3ac
       });
       
     } catch (error) {
       console.error('Error transcribing chapter:', error);
       toast({
-<<<<<<< HEAD
         title: "Transcription failed",
         description: error.message || "Unable to transcribe audio. Please try again.",
-=======
-        title: "Échec de la transcription",
-        description: error.message || "Impossible de transcrire l'audio. Veuillez réessayer.",
->>>>>>> a1e0af1fc496f48d51ddfc06016e7539af8de3ac
         variant: "destructive",
       });
     } finally {
@@ -279,20 +263,49 @@ const ChaptersPage = () => {
     }
   };
 
+  // NEW: Process audios with backend AI system (replaces old transcription + compilation)
+  const handleProcessAudios = async (chapterId: string) => {
+    const chapter = chapters.find(c => c.id === chapterId);
+    if (!chapter) return;
+
+    await handleProcessAudiosWithBackend(chapter);
+  };
+
+  // Handle progress dialog events
+  const handleProgressComplete = (results: ProcessingResults) => {
+    setProcessingResults(results);
+    setShowProgressDialog(false);
+    setIsProcessing(false);
+    
+    toast({
+      title: "Book Creation Complete!",
+      description: `Your story has been transformed into a comprehensive book with ${results.chapters.length} chapters.`,
+    });
+  };
+
+  const handleProgressError = (error: string) => {
+    setProcessingError(error);
+    setShowProgressDialog(false);
+    setIsProcessing(false);
+    
+    toast({
+      title: "Processing Failed",
+      description: error,
+      variant: "destructive",
+    });
+  };
+
+  const handleProgressClose = () => {
+    setShowProgressDialog(false);
+  };
+
+  // LEGACY: Keep old methods for backward compatibility (can be removed later)
   const handleCompileStory = async (chapterId: string) => {
-<<<<<<< HEAD
     // Check if API key is configured
     if (!claudeService.hasApiKey()) {
       toast({
         title: "API key required",
         description: "Configure your Claude API key to generate stories.",
-=======
-    // Vérifier si la clé API est configurée
-    if (!claudeService.hasApiKey()) {
-      toast({
-        title: "Clé API requise",
-        description: "Configurez votre clé API Claude pour générer des histoires.",
->>>>>>> a1e0af1fc496f48d51ddfc06016e7539af8de3ac
         variant: "destructive",
       });
       return;
@@ -303,13 +316,8 @@ const ChaptersPage = () => {
     
     if (!chapter || !transcriptions || transcriptions.transcriptions.length === 0) {
       toast({
-<<<<<<< HEAD
         title: "Transcription required",
         description: "Please transcribe the recordings first.",
-=======
-        title: "Transcription requise",
-        description: "Veuillez d'abord transcrire les enregistrements.",
->>>>>>> a1e0af1fc496f48d51ddfc06016e7539af8de3ac
         variant: "destructive",
       });
       return;
@@ -318,47 +326,29 @@ const ChaptersPage = () => {
     setCompilingChapter(chapterId);
     
     try {
-<<<<<<< HEAD
       // Generate story with Claude
-=======
-      // Générer l'histoire avec Claude
->>>>>>> a1e0af1fc496f48d51ddfc06016e7539af8de3ac
       const storyResult = await claudeService.generateStory(
         transcriptions.transcriptions,
         chapter.title,
         chapter.description
       );
 
-<<<<<<< HEAD
       // Save the result
-=======
-      // Sauvegarder le résultat
->>>>>>> a1e0af1fc496f48d51ddfc06016e7539af8de3ac
       setGeneratedStories(prev => ({
         ...prev,
         [chapterId]: storyResult
       }));
       
       toast({
-<<<<<<< HEAD
         title: "Story generated!",
         description: `${chapter.title} has been transformed into a beautiful story.`,
-=======
-        title: "Histoire générée !",
-        description: `${chapter.title} a été transformé en une belle histoire.`,
->>>>>>> a1e0af1fc496f48d51ddfc06016e7539af8de3ac
       });
       
     } catch (error) {
       console.error('Error compiling story:', error);
       toast({
-<<<<<<< HEAD
         title: "Compilation failed",
         description: error.message || "Unable to compile story. Please try again.",
-=======
-        title: "Échec de la compilation",
-        description: error.message || "Impossible de compiler l'histoire. Veuillez réessayer.",
->>>>>>> a1e0af1fc496f48d51ddfc06016e7539af8de3ac
         variant: "destructive",
       });
     } finally {
@@ -561,65 +551,68 @@ const ChaptersPage = () => {
                     </div>
                   )}
                   
-                  {/* Transcription and Story Generation Buttons */}
+                  {/* AI Processing Buttons */}
                   <div className="mt-4 pt-4 border-t border-border/30 space-y-3">
-                    {/* Step 1: Transcribe */}
+                    {/* NEW: AI Book Creation (replaces transcription + compilation) */}
                     <Button
-                      onClick={() => handleTranscribeChapter(chapter.id)}
-                      disabled={chapter.recordings.length === 0 || transcribingChapter === chapter.id}
-                      className="w-full bg-secondary hover:bg-secondary/90 text-secondary-foreground"
+                      onClick={() => handleProcessAudios(chapter.id)}
+                      disabled={chapter.recordings.length === 0 || processingState.isProcessing}
+                      className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white shadow-lg"
                       size="lg"
                     >
-                      <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-                      </svg>
-<<<<<<< HEAD
-                      {transcribingChapter === chapter.id ? 'Transcribing...' : 'Transcribe audio recordings'}
-=======
-                      {transcribingChapter === chapter.id ? 'Transcription en cours...' : 'Transcrire les enregistrements'}
->>>>>>> a1e0af1fc496f48d51ddfc06016e7539af8de3ac
+                      <BookOpen className="w-5 h-5 mr-2" />
+                      {processingState.isProcessing ? 'Creating AI Book...' : 'Create AI-Powered Book'}
                     </Button>
                     
-                    {/* Step 2: Compile into Story (only show after transcription) */}
-                    {chapterTranscriptions[chapter.id] && (
-                      claudeService.hasApiKey() ? (
-                        <Button
-                          onClick={() => handleCompileStory(chapter.id)}
-                          disabled={compilingChapter === chapter.id}
-                          className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
-                          size="lg"
-                        >
-                          <BookOpen className="w-5 h-5 mr-2" />
-<<<<<<< HEAD
-                          {compilingChapter === chapter.id ? 'Generating story...' : 'Compile into a story'}
-=======
-                          {compilingChapter === chapter.id ? 'Génération en cours...' : 'Compiler en Histoire'}
->>>>>>> a1e0af1fc496f48d51ddfc06016e7539af8de3ac
-                        </Button>
-                      ) : (
-                        <ApiKeyDialog>
+                    {/* Legacy buttons (for backwards compatibility) */}
+                    <div className="space-y-2 pt-2 border-t border-border/20">
+                      <p className="text-xs text-muted-foreground text-center">Legacy Processing</p>
+                      
+                      {/* Step 1: Transcribe */}
+                      <Button
+                        onClick={() => handleTranscribeChapter(chapter.id)}
+                        disabled={chapter.recordings.length === 0 || transcribingChapter === chapter.id}
+                        className="w-full bg-secondary hover:bg-secondary/90 text-secondary-foreground"
+                        size="sm"
+                        variant="outline"
+                      >
+                        <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                        </svg>
+                        {transcribingChapter === chapter.id ? 'Transcribing...' : 'Transcribe Only'}
+                      </Button>
+                      
+                      {/* Step 2: Compile into Story (only show after transcription) */}
+                      {chapterTranscriptions[chapter.id] && (
+                        claudeService.hasApiKey() ? (
                           <Button
-                            className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
-                            size="lg"
+                            onClick={() => handleCompileStory(chapter.id)}
+                            disabled={compilingChapter === chapter.id}
+                            className="w-full"
+                            size="sm"
+                            variant="outline"
                           >
-                            <Key className="w-5 h-5 mr-2" />
-<<<<<<< HEAD
-                            Configure Claude API
-=======
-                            Configurer API Claude
->>>>>>> a1e0af1fc496f48d51ddfc06016e7539af8de3ac
+                            <BookOpen className="w-4 h-4 mr-2" />
+                            {compilingChapter === chapter.id ? 'Generating...' : 'Generate Simple Story'}
                           </Button>
-                        </ApiKeyDialog>
-                      )
-                    )}
+                        ) : (
+                          <ApiKeyDialog>
+                            <Button
+                              className="w-full"
+                              size="sm"
+                              variant="outline"
+                            >
+                              <Key className="w-4 h-4 mr-2" />
+                              Configure Claude API
+                            </Button>
+                          </ApiKeyDialog>
+                        )
+                      )}
+                    </div>
                     
                     {chapter.recordings.length === 0 && (
                       <p className="text-xs text-muted-foreground mt-2 text-center">
-<<<<<<< HEAD
                         Add recordings to get started
-=======
-                        Ajoutez des enregistrements pour commencer
->>>>>>> a1e0af1fc496f48d51ddfc06016e7539af8de3ac
                       </p>
                     )}
                   </div>
@@ -635,11 +628,7 @@ const ChaptersPage = () => {
                           {chapterTranscriptions[chapter.id].transcriptions.map((transcription, index) => (
                             <div key={index} className="p-3 bg-muted/30 rounded-lg">
                               <div className="text-xs text-muted-foreground mb-1">
-<<<<<<< HEAD
                                 Recording {index + 1}
-=======
-                                Enregistrement {index + 1}
->>>>>>> a1e0af1fc496f48d51ddfc06016e7539af8de3ac
                               </div>
                               <div className="text-sm text-foreground leading-relaxed">
                                 {transcription}
@@ -686,6 +675,81 @@ const ChaptersPage = () => {
               <Plus className="w-4 h-4 mr-2" />
               Create Your First Story
             </Button>
+          </div>
+        </div>
+      )}
+
+      {/* AI Processing Progress Dialog */}
+      <ProcessingProgressDialog
+        sessionId={processingState.currentSessionId || ''}
+        isOpen={processingState.showProgressDialog}
+        onClose={handleProgressClose}
+        onComplete={handleProgressComplete}
+        onError={handleProgressError}
+      />
+
+      {/* Enhanced AI Results Display */}
+      {processingState.processingResults && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-6xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b p-4 flex items-center justify-between">
+              <h2 className="text-2xl font-bold text-gray-900">Your AI-Generated Book</h2>
+              <button
+                onClick={() => setProcessingResults(null)}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+                aria-label="Close results"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="p-6">
+              <EnhancedChapterResults
+                results={processingState.processingResults}
+                sessionId={processingState.currentSessionId || undefined}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Processing Error Display */}
+      {processingState.processingError && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-md w-full p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-red-900">Processing Failed</h3>
+              <button
+                onClick={() => setProcessingError(null)}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+                aria-label="Close error"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                <p className="text-red-800 text-sm">{processingState.processingError}</p>
+              </div>
+              <div className="flex justify-end space-x-3">
+                <button
+                  onClick={() => setProcessingError(null)}
+                  className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
+                >
+                  Close
+                </button>
+                <button
+                  onClick={() => {
+                    setProcessingError(null);
+                    // Optionally retry the last chapter
+                  }}
+                  className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+                >
+                  Try Again
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
