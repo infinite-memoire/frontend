@@ -284,7 +284,7 @@ class BackendAiService {
   async pollUntilComplete(
     sessionId: string,
     onProgress?: (session: ProcessingSession) => void,
-    pollInterval: number = 2000,
+    pollInterval: number = 5000,
     maxDuration: number = 600000 // 10 minutes default
   ): Promise<ProcessingResults> {
     const startTime = Date.now();

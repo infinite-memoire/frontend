@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Play, Pause, MoreVertical, Plus, Edit, Trash2, Loader2, BookOpen, Key, Mic } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -272,7 +272,7 @@ const ChaptersPage = () => {
   };
 
   // Handle progress dialog events
-  const handleProgressComplete = (results: ProcessingResults) => {
+  const handleProgressComplete = useCallback((results: ProcessingResults) => {
     setProcessingResults(results);
     setShowProgressDialog(false);
     setIsProcessing(false);
@@ -281,9 +281,9 @@ const ChaptersPage = () => {
       title: "Book Creation Complete!",
       description: `Your story has been transformed into a comprehensive book with ${results.chapters.length} chapters.`,
     });
-  };
+  }, [toast]);
 
-  const handleProgressError = (error: string) => {
+  const handleProgressError = useCallback((error: string) => {
     setProcessingError(error);
     setShowProgressDialog(false);
     setIsProcessing(false);
@@ -293,11 +293,11 @@ const ChaptersPage = () => {
       description: error,
       variant: "destructive",
     });
-  };
+  }, [toast]);
 
-  const handleProgressClose = () => {
+  const handleProgressClose = useCallback(() => {
     setShowProgressDialog(false);
-  };
+  }, []);
 
   // LEGACY: Keep old methods for backward compatibility (can be removed later)
   const handleCompileStory = async (chapterId: string) => {

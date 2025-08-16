@@ -1,7 +1,7 @@
 // UI Components: Production-ready progress monitoring and results display
 // Based on implementation artifacts with proper imports and integrations
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { backendAiService, ProcessingSession, ProcessingResults, Chapter, FollowupQuestion, Storyline } from '../services/backendAiService';
 
 // Progress Dialog Component for monitoring AI pipeline stages
@@ -22,11 +22,13 @@ export const ProcessingProgressDialog: React.FC<ProcessingProgressDialogProps> =
 }) => {
   const [progress, setProgress] = useState<ProcessingSession | null>(null);
   const [isPolling, setIsPolling] = useState(false);
+  const pollingRef = useRef(false);
 
   useEffect(() => {
-    if (!isOpen || !sessionId || isPolling) return;
+    if (!isOpen || !sessionId || isPolling || pollingRef.current) return;
 
     setIsPolling(true);
+    pollingRef.current = true;
     
     const pollProgress = async () => {
       try {
@@ -39,17 +41,19 @@ export const ProcessingProgressDialog: React.FC<ProcessingProgressDialogProps> =
             setProgress(session);
             console.log(`Progress update: ${session.progressPercentage}% - ${session.currentStage}`);
           },
-          2000, // 2 second intervals for responsive UI
+          5000, // 5 second intervals as requested
           600000 // 10 minute timeout for book creation
         );
         
         console.log(`Processing completed for session: ${sessionId}`);
         setIsPolling(false);
+        pollingRef.current = false;
         onComplete(results);
         
       } catch (error) {
         console.error(`Processing failed for session ${sessionId}:`, error);
         setIsPolling(false);
+        pollingRef.current = false;
         onError(error instanceof Error ? error.message : 'Processing failed');
       }
     };
@@ -59,8 +63,9 @@ export const ProcessingProgressDialog: React.FC<ProcessingProgressDialogProps> =
     // Cleanup function to prevent memory leaks
     return () => {
       setIsPolling(false);
+      pollingRef.current = false;
     };
-  }, [sessionId, isOpen, isPolling, onClose, onComplete, onError]);
+  }, [sessionId, isOpen]); // Removed isPolling and callback dependencies to prevent restart loops
 
   // Handle dialog close with proper cleanup
   const handleClose = () => {
