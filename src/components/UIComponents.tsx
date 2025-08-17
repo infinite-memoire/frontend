@@ -45,10 +45,24 @@ export const ProcessingProgressDialog: React.FC<ProcessingProgressDialogProps> =
           600000 // 10 minute timeout for book creation
         );
         
-        console.log(`Processing completed for session: ${sessionId}`);
+        console.log(`Processing completed for session: ${sessionId}`, results);
+        
+        // Update progress to show completion
+        setProgress({
+          sessionId,
+          status: 'completed',
+          currentStage: 'Completed',
+          progressPercentage: 100,
+          currentTask: 'Book generation complete!',
+          estimatedCompletion: undefined,
+          resultsPreview: results,
+          errors: []
+        });
+        
         setIsPolling(false);
         pollingRef.current = false;
-        onComplete(results);
+        
+        // Don't auto-close - let user manually view results
         
       } catch (error) {
         console.error(`Processing failed for session ${sessionId}:`, error);
@@ -81,7 +95,9 @@ export const ProcessingProgressDialog: React.FC<ProcessingProgressDialogProps> =
       <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-xl">
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-gray-900">Creating Your Book</h3>
+            <h3 className="text-lg font-semibold text-gray-900">
+              {progress?.status === 'completed' ? 'Book Created Successfully!' : 'Creating Your Book'}
+            </h3>
             <button
               onClick={handleClose}
               className={`text-gray-400 hover:text-gray-600 transition-colors ${
@@ -210,11 +226,31 @@ export const ProcessingProgressDialog: React.FC<ProcessingProgressDialogProps> =
                   Processing
                 </>
               )}
-              {progress?.status === 'completed' && 'Completed'}
+              {progress?.status === 'completed' && (
+                <>
+                  <div className="w-2 h-2 bg-green-600 rounded-full mr-2"></div>
+                  Completed
+                </>
+              )}
               {progress?.status === 'failed' && 'Failed'}
               {(!progress || progress?.status === 'pending') && 'Initializing'}
             </div>
           </div>
+
+          {/* Completion Actions */}
+          {progress?.status === 'completed' && (
+            <div className="text-center pt-4 border-t border-gray-200">
+              <p className="text-sm text-gray-600 mb-4">
+                Your book has been generated successfully! Click below to view the results.
+              </p>
+              <button
+                onClick={() => onComplete(progress.resultsPreview || {})}
+                className="w-full bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition-colors font-medium"
+              >
+                View Your Book →
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>
