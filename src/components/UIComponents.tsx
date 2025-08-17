@@ -173,7 +173,7 @@ export const ProcessingProgressDialog: React.FC<ProcessingProgressDialogProps> =
                           <span>
                             {typeof error === 'string' 
                               ? error 
-                              : error?.error || error?.message || JSON.stringify(error)
+                              : error?.error || error?.traceback || JSON.stringify(error)
                             }
                           </span>
                         </div>
