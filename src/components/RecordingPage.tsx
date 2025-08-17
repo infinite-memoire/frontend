@@ -14,6 +14,10 @@ interface RecordingPageProps {
 }
 
 const RecordingPage = ({ onRecordingStateChange }: RecordingPageProps) => {
+  // For uploaded audio
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [uploadedAudio, setUploadedAudio] = useState<Blob | null>(null);
+  const [uploadedFileName, setUploadedFileName] = useState<string>('');
   const { currentUser } = useAuth();
   const { toast } = useToast();
   
@@ -196,12 +200,17 @@ const RecordingPage = ({ onRecordingStateChange }: RecordingPageProps) => {
 
     setSaving(true);
     try {
-      // Create audio blob from recorded chunks
+      // Use uploaded audio if present, otherwise use recorded audio
+      let audioBlob: Blob;
       let mimeType = 'audio/aac';
-      if (mediaRecorderRef.current) {
-        mimeType = mediaRecorderRef.current.mimeType || 'audio/aac';
+      if (uploadedAudio) {
+        audioBlob = uploadedAudio;
+      } else {
+        if (mediaRecorderRef.current) {
+          mimeType = mediaRecorderRef.current.mimeType || 'audio/aac';
+        }
+        audioBlob = new Blob(recordedChunksRef.current, { type: mimeType });
       }
-      const audioBlob = new Blob(recordedChunksRef.current, { type: mimeType });
 
       let chapterIdToUse = selectedChapterId;
       // If no chapter selected, use or create 'Uncategorized' chapter
@@ -252,6 +261,8 @@ const RecordingPage = ({ onRecordingStateChange }: RecordingPageProps) => {
       setSelectedChapterId('');
       setAudioLevel(0);
       recordedChunksRef.current = [];
+      setUploadedAudio(null);
+      setUploadedFileName('');
     } catch (error) {
       console.error('Error saving recording:', error);
       toast({
@@ -365,6 +376,24 @@ const WaveVisualization = ({ audioLevel, isRecording }: { audioLevel: number; is
 
         {/* Recording Controls */}
         <div className="flex items-center justify-center space-x-4 md:space-x-6 mb-6 md:mb-8">
+          {/* Save button appears when a recording or upload is ready */}
+          {hasRecording && (
+            <button
+              onClick={saveRecording}
+              disabled={saving}
+              className={cn(
+                "flex items-center justify-center px-4 py-3 rounded-lg border border-primary bg-primary text-primary-foreground hover:bg-primary/90 transition-organic",
+                saving && "opacity-50 cursor-not-allowed"
+              )}
+              title="Save Recording"
+            >
+              {saving ? (
+                <span className="flex items-center"><span className="animate-spin mr-2">⏳</span>Saving...</span>
+              ) : (
+                <><Save className="w-4 h-4 mr-2" />Save</>
+              )}
+            </button>
+          )}
           <button
             onClick={startRecording}
             disabled={isRecording}
@@ -375,6 +404,7 @@ const WaveVisualization = ({ audioLevel, isRecording }: { audioLevel: number; is
               "border-2 border-primary/30 shadow-vintage",
               isRecording && "vintage-pulse ink-drop"
             )}
+            title="Start Recording"
           >
             <Mic className="w-5 h-5 md:w-6 md:h-6" />
             {/* Animation au clic */}
@@ -386,81 +416,47 @@ const WaveVisualization = ({ audioLevel, isRecording }: { audioLevel: number; is
             )}
           </button>
 
+          {/* Upload Recording Button (visible, styled) */}
+          <input
+            type="file"
+            accept="audio/*"
+            ref={fileInputRef}
+            style={{ display: 'none' }}
+            onChange={async (e) => {
+              const file = e.target.files?.[0];
+              if (file) {
+                setUploadedAudio(file);
+                setUploadedFileName(file.name);
+                setHasRecording(true);
+                setRecordingTitle(file.name.replace(/\.[^/.]+$/, ""));
+                // Optionally, set recordingTime if you want to extract duration
+              }
+            }}
+          />
           <button
-            onClick={isPaused ? resumeRecording : pauseRecording}
-            disabled={!isRecording && !isPaused}
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isRecording}
             className={cn(
-              "w-12 h-12 md:w-14 md:h-14 rounded-full flex items-center justify-center transition-organic",
-              "bg-secondary text-secondary-foreground hover:bg-secondary/90 hover:scale-105",
-              "disabled:opacity-50 disabled:cursor-not-allowed",
+              "w-14 h-14 md:w-16 md:h-16 rounded-full flex flex-col items-center justify-center transition-organic",
+              "bg-secondary text-secondary-foreground hover:bg-secondary/90",
+              "hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed",
               "border-2 border-secondary/30 shadow-vintage"
             )}
+            title="Upload Recording"
           >
-            {isPaused ? <Play className="w-4 h-4 md:w-5 md:h-5" /> : <Pause className="w-4 h-4 md:w-5 md:h-5" />}
+            <Save className="w-5 h-5 md:w-6 md:h-6 mb-1" />
+            <span className="text-xs font-medium">Upload</span>
           </button>
 
           <button
-            onClick={stopRecording}
-            disabled={!isRecording && !isPaused}
-            className={cn(
-              "w-12 h-12 md:w-14 md:h-14 rounded-full flex items-center justify-center transition-organic",
-              "bg-destructive text-destructive-foreground hover:bg-destructive/90 hover:scale-105",
-              "disabled:opacity-50 disabled:cursor-not-allowed",
-              "border-2 border-destructive/30 shadow-vintage"
-            )}
+            onClick={deleteRecording}
+            className="flex items-center justify-center px-4 py-3 rounded-lg border border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground transition-organic"
+            title="Delete Recording"
           >
-            <Square className="w-4 h-4 md:w-5 md:h-5" />
+            <Trash2 className="w-4 h-4" />
           </button>
         </div>
-
-        {/* Save Recording */}
-        {hasRecording && (
-          <div className="space-y-4 pt-4 md:pt-6 border-t border-border/50">
-            <input
-              type="text"
-              value={recordingTitle}
-              onChange={(e) => setRecordingTitle(e.target.value)}
-              placeholder="Name this memory..."
-              className="w-full px-4 py-3 text-base rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition-organic"
-            />
-            
-            <Select value={selectedChapterId} onValueChange={setSelectedChapterId}>
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Select a chapter to save this recording to..." />
-              </SelectTrigger>
-              <SelectContent>
-                {chapters.map((chapter) => (
-                  <SelectItem key={chapter.id} value={chapter.id}>
-                    {chapter.title}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            
-            <div className="flex space-x-3">
-              <button
-                onClick={saveRecording}
-                disabled={!recordingTitle.trim() || saving}
-                className="flex-1 bg-primary text-primary-foreground py-3 px-4 md:px-6 text-base rounded-lg hover:bg-primary/90 transition-organic font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
-              >
-                {saving ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
-                    Saving...
-                  </>
-                ) : (
-                  'Save Recording'
-                )}
-              </button>
-              <button
-                onClick={deleteRecording}
-                className="flex items-center justify-center px-4 py-3 rounded-lg border border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground transition-organic"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Recording Tips */}
