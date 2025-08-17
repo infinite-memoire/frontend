@@ -167,9 +167,21 @@ export const ProcessingProgressDialog: React.FC<ProcessingProgressDialogProps> =
                   <p className="text-red-800 text-sm font-medium">Processing Issues:</p>
                   <ul className="text-red-700 text-sm mt-2 space-y-1">
                     {progress.errors.map((error, index) => (
-                      <li key={index} className="flex items-start">
-                        <span className="text-red-500 mr-2">•</span>
-                        <span>{error}</span>
+                      <li key={index} className="flex flex-col space-y-1">
+                        <div className="flex items-start">
+                          <span className="text-red-500 mr-2">•</span>
+                          <span>
+                            {typeof error === 'string' 
+                              ? error 
+                              : error?.error || error?.message || JSON.stringify(error)
+                            }
+                          </span>
+                        </div>
+                        {typeof error === 'object' && error?.timestamp && (
+                          <div className="text-xs text-red-500 ml-4">
+                            {new Date(error.timestamp).toLocaleTimeString()}
+                          </div>
+                        )}
                       </li>
                     ))}
                   </ul>

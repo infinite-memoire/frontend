@@ -10,7 +10,7 @@ export interface ProcessingSession {
   currentTask: string;
   estimatedCompletion?: string;
   resultsPreview?: any;
-  errors: string[];
+  errors: (string | { timestamp: string; error: string; traceback?: string })[];
 }
 
 export interface ProcessingResults {
