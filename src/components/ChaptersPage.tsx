@@ -38,6 +38,8 @@ const ChaptersPage = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingChapter, setEditingChapter] = useState<Chapter | null>(null);
   const [playingRecording, setPlayingRecording] = useState<string | null>(null);
+  // UI message for graph retrieval
+  const [graphMessage, setGraphMessage] = useState<string | null>(null);
   const [deletingRecording, setDeletingRecording] = useState<string | null>(null);
   const [transcribingChapter, setTranscribingChapter] = useState<string | null>(null);
   const [compilingChapter, setCompilingChapter] = useState<string | null>(null);
@@ -150,6 +152,7 @@ const ChaptersPage = () => {
       if (audioRef.current) {
         audioRef.current.pause();
         audioRef.current.currentTime = 0;
+        const [graphMessage, setGraphMessage] = useState<string | null>(null);
       }
       setPlayingRecording(null);
     } else {
@@ -197,12 +200,11 @@ const ChaptersPage = () => {
     
     try {
       await recordingsService.deleteRecording(currentUser.uid, chapterId, recordingId);
-      
       toast({
         title: "Success",
-        description: "Recording deleted successfully!",
+        description: "Recording deleted successfully.",
+        variant: "default",
       });
-      
       setDeletingRecording(null);
     } catch (error) {
       console.error('Error deleting recording:', error);
@@ -563,6 +565,38 @@ const ChaptersPage = () => {
                       <BookOpen className="w-5 h-5 mr-2" />
                       {processingState.isProcessing ? 'Creating AI Book...' : 'Create AI-Powered Book'}
                     </Button>
+
+                    {/* NEW: Retrieve Graph Button */}
+                    <Button
+                      onClick={async () => {
+                        try {
+                          const res = await fetch('/api/graph/full?limit=100', {
+                            headers: { 'Accept': 'application/json' }
+                          });
+                          if (!res.ok) {
+                            throw new Error(`HTTP ${res.status}`);
+                          }
+                          const data = await res.json();
+                          if (data?.success !== true) {
+                            throw new Error(data?.message || 'Backend reported failure');
+                          }
+                          setGraphMessage(`Graph retrieved! Nodes: ${(data.data?.nodes?.length ?? 0)}, Relationships: ${(data.data?.relationships?.length ?? 0)}`);
+                        } catch (err) {
+                          console.error('Retrieve graph failed:', err);
+                          setGraphMessage('Retrieve graph failed: ' + String(err));
+                        }
+                      }}
+                      className="w-full bg-gradient-to-r from-green-600 to-blue-500 hover:from-green-700 hover:to-blue-700 text-white shadow-lg"
+                      size="lg"
+                    >
+                      <BookOpen className="w-5 h-5 mr-2" />
+                      Retrieve Graph
+                    </Button>
+                    {graphMessage && (
+                      <div className="mt-2 p-2 rounded bg-muted text-foreground text-center text-sm border border-border">
+                        {graphMessage}
+                      </div>
+                    )}
                     
                     {/* Legacy buttons (for backwards compatibility) */}
                     <div className="space-y-2 pt-2 border-t border-border/20">
