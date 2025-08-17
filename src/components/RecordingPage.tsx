@@ -185,35 +185,58 @@ const RecordingPage = ({ onRecordingStateChange }: RecordingPageProps) => {
   };
 
   const saveRecording = async () => {
-    if (!hasRecording || !recordingTitle.trim() || !selectedChapterId || !currentUser) {
+    if (!hasRecording || !recordingTitle.trim() || !currentUser) {
       toast({
         title: "Missing Information",
-        description: "Please provide a title and select a chapter.",
+        description: "Please provide a title.",
         variant: "destructive",
       });
       return;
     }
 
     setSaving(true);
-    
     try {
       // Create audio blob from recorded chunks
-      // Determine the correct MIME type based on what was actually recorded
-      let mimeType = 'audio/aac'; // Default to AAC
+      let mimeType = 'audio/aac';
       if (mediaRecorderRef.current) {
         mimeType = mediaRecorderRef.current.mimeType || 'audio/aac';
       }
       const audioBlob = new Blob(recordedChunksRef.current, { type: mimeType });
-      
-      // Upload recording with audio to Firebase
+
+      let chapterIdToUse = selectedChapterId;
+      // If no chapter selected, use or create 'Uncategorized' chapter
+      if (!chapterIdToUse) {
+        // Try to find 'Uncategorized' chapter
+        let uncategorized = chapters.find(
+          (c) => c.title.trim().toLowerCase() === 'uncategorized'
+        );
+        if (!uncategorized) {
+          // Create it
+          const newChapterId = await chaptersService.addChapter(currentUser.uid, {
+            title: 'Uncategorized',
+            description: 'Recordings not assigned to any chapter.',
+            topics: [],
+            createdAt: new Date().toISOString(),
+          });
+          chapterIdToUse = newChapterId;
+          // Refresh chapters list after creation
+          if (typeof chaptersService.getChapters === 'function') {
+            const updatedChapters = await chaptersService.getChapters(currentUser.uid);
+            setChapters(updatedChapters);
+          }
+        } else {
+          chapterIdToUse = uncategorized.id;
+        }
+      }
+
       await recordingsService.uploadRecordingWithAudio(
         currentUser.uid,
-        selectedChapterId,
+        chapterIdToUse,
         audioBlob,
         {
           title: recordingTitle,
           duration: recordingTime,
-          date: new Date().toISOString()
+          date: new Date().toISOString(),
         }
       );
 
@@ -229,7 +252,6 @@ const RecordingPage = ({ onRecordingStateChange }: RecordingPageProps) => {
       setSelectedChapterId('');
       setAudioLevel(0);
       recordedChunksRef.current = [];
-      
     } catch (error) {
       console.error('Error saving recording:', error);
       toast({
@@ -418,7 +440,7 @@ const WaveVisualization = ({ audioLevel, isRecording }: { audioLevel: number; is
             <div className="flex space-x-3">
               <button
                 onClick={saveRecording}
-                disabled={!recordingTitle.trim() || !selectedChapterId || saving}
+                disabled={!recordingTitle.trim() || saving}
                 className="flex-1 bg-primary text-primary-foreground py-3 px-4 md:px-6 text-base rounded-lg hover:bg-primary/90 transition-organic font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
               >
                 {saving ? (
